@@ -58,21 +58,11 @@ class Hammer(nn.Module, torch_ac.RecurrentACModel):
                 nn.Conv2d(16, 32, (2, 2)),
                 nn.ReLU(),
                 nn.Conv2d(32, 64, (2, 2)),
-                nn.ReLU(),
-                # nn.Conv2d(64, 32, (1, 1)),
-                # nn.ReLU(),
-                # nn.Conv2d(32, 16, (1, 1)),
-                # nn.ReLU()
+                nn.ReLU()
             )
             hammer_n = obs_space["hammer_image"][0]
             hammer_m = obs_space["hammer_image"][1]
-            self.hammer_image_embedding_size = 64 #((hammer_n-1)//2-2)*((hammer_m-1)//2-2)*64
-            # print("=================================") 
-            # print(n) 
-            # print(m) 
-            # print(self.hammer_image_embedding_size)
-            # print("=================================")
-            # exit() 
+            self.hammer_image_embedding_size = ((hammer_n-1)//2-2)*((hammer_m-1)//2-2)*64
             
 
         # Resize image embedding
