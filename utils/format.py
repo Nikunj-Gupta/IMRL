@@ -10,6 +10,7 @@ import utils
 
 
 def get_obss_preprocessor(obs_space):
+
     # Check if obs_space is an image space
     if isinstance(obs_space, gym.spaces.Box):
         obs_space = {"image": obs_space.shape}
@@ -17,6 +18,16 @@ def get_obss_preprocessor(obs_space):
         def preprocess_obss(obss, device=None):
             return torch_ac.DictList({
                 "image": preprocess_images(obss, device=device)
+            })
+
+    # Check if it is a MiniGrid observation space for Hammer 
+    elif isinstance(obs_space, gym.spaces.Dict) and list(obs_space.spaces.keys()) == ["image", "hammer_image"]:
+        obs_space = {"image": obs_space.spaces["image"].shape, "hammer_image": obs_space.spaces["hammer_image"].shape}
+
+        def preprocess_obss(obss, device=None):
+            return torch_ac.DictList({
+                "image": preprocess_images([obs["image"] for obs in obss], device=device),
+                "hammer_image": preprocess_images([obs["hammer_image"] for obs in obss], device=device),
             })
 
     # Check if it is a MiniGrid observation space
