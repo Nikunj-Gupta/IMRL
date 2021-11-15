@@ -1,8 +1,10 @@
+from hammer import Hammer
 import torch
 
 import utils
 from .other import device
-from model import ACModel
+from model import ACModel 
+from hammer import Hammer
 
 
 class Agent:
@@ -13,9 +15,9 @@ class Agent:
     - to analyze the feedback (i.e. reward and done state) of its action."""
 
     def __init__(self, obs_space, action_space, model_dir,
-                 argmax=False, num_envs=1, use_memory=False, use_text=False):
+                 argmax=False, num_envs=1, use_memory=False, use_text=False, use_hammer=False):
         obs_space, self.preprocess_obss = utils.get_obss_preprocessor(obs_space)
-        self.acmodel = ACModel(obs_space, action_space, use_memory=use_memory, use_text=use_text)
+        self.acmodel = Hammer(obs_space, action_space, use_memory=use_memory, use_text=use_text, use_hammer=use_hammer)
         self.argmax = argmax
         self.num_envs = num_envs
 
