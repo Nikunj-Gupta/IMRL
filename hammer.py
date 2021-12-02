@@ -126,12 +126,9 @@ class Hammer(nn.Module, torch_ac.RecurrentACModel):
         x = self.critic(embedding)
         value = x.squeeze(1)
 
-        return dist, value, memory
+        return dist, value, 0, memory
 
     def _get_embed_text(self, text):
         _, hidden = self.text_rnn(self.word_embedding(text))
         return hidden[-1]
     
-    def _get_embed_hammer(self, hammer_image):
-        _, hidden = self.hammer_image_conv(self.word_embedding(hammer_image))
-        return hidden[-1]
