@@ -5,6 +5,7 @@ import utils
 from .other import device
 from model import ACModel 
 from hammer import Hammer
+from value import VoI
 
 
 class Agent:
@@ -15,9 +16,9 @@ class Agent:
     - to analyze the feedback (i.e. reward and done state) of its action."""
 
     def __init__(self, obs_space, action_space, model_dir,
-                 argmax=False, num_envs=1, use_memory=False, use_text=False, use_hammer=False):
+                 argmax=False, num_envs=1, use_memory=False, use_text=False, use_hammer=False, learn_voi=False):
         obs_space, self.preprocess_obss = utils.get_obss_preprocessor(obs_space)
-        self.acmodel = Hammer(obs_space, action_space, use_memory=use_memory, use_text=use_text, use_hammer=use_hammer)
+        self.acmodel = VoI(obs_space, action_space, use_memory=use_memory, use_text=use_text, use_hammer=use_hammer, learn_voi=learn_voi)
         self.argmax = argmax
         self.num_envs = num_envs
 
@@ -35,16 +36,16 @@ class Agent:
 
         with torch.no_grad():
             if self.acmodel.recurrent:
-                dist, _, self.memories = self.acmodel(preprocessed_obss, self.memories)
+                dist, _, cost, self.memories = self.acmodel(preprocessed_obss, self.memories)
             else:
-                dist, _ = self.acmodel(preprocessed_obss)
+                dist, _, cost = self.acmodel(preprocessed_obss)
 
         if self.argmax:
             actions = dist.probs.max(1, keepdim=True)[1]
         else:
             actions = dist.sample()
 
-        return actions.cpu().numpy()
+        return actions.cpu().numpy(), cost.cpu().numpy()
 
     def get_action(self, obs):
         return self.get_actions([obs])[0]
