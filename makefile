@@ -8,12 +8,12 @@ voi:
         ((num1 = num1 + 1)) ; \
     done
 hammer: 
-	num2=1 ; while [ $$num1 -le 10 ] ; do \
+	num2=1 ; while [ $$num2 -le 10 ] ; do \
             python3 -m scripts.train_value --algo ppo --env MiniGrid-DoorKey-8x8-v0 --model Doorkey-hammer-$$num2 --seed $$num2 --hammer ; \
         ((num1 = num1 + 1)) ; \
     done 
 no: 
-	num3=1 ; while [ $$num1 -le 10 ] ; do \
+	num3=1 ; while [ $$num2 -le 10 ] ; do \
             python3 -m scripts.train_value --algo ppo --env MiniGrid-DoorKey-8x8-v0 --model Doorkey-no-$$num3 --seed $$num3 ; \
         ((num1 = num1 + 1)) ; \
     done 
