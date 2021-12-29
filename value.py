@@ -55,7 +55,7 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
         if self.learn_voi: 
             # Define actor's inquiry model
             self.inquire = nn.Sequential(
-                nn.Linear(self.image_embedding_size, 64),
+                nn.Linear(self.image_embedding_size+1, 64), # adding 1; for cost from information agent 
                 nn.Tanh(),
                 nn.Linear(64, 1), 
                 nn.Sigmoid()
@@ -84,7 +84,7 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
                     nn.Linear(self.hammer_image_embedding_size, 32),
                     nn.Tanh(),
                     nn.Linear(32, 1), 
-                    nn.ReLU()
+                    nn.LeakyReLU()
                 ) 
 
 
@@ -94,8 +94,8 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
             self.embedding_size += self.text_embedding_size 
         if self.use_hammer: 
             self.embedding_size += self.hammer_image_embedding_size 
-        if self.learn_voi: 
-            self.embedding_size += 1 # cost 
+        # if self.learn_voi: 
+        #     self.embedding_size += 1 # cost 
         
         # Define actor's model
         self.actor = nn.Sequential(
@@ -139,21 +139,16 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
             embed_text = self._get_embed_text(obs.text)
             embedding = torch.cat((embedding, embed_text), dim=1)
         
-        if self.learn_voi: 
-            ask = self.inquire(x) 
-        
-
         if self.use_hammer: 
             hammer_x = obs.hammer_image.transpose(1, 3).transpose(2, 3)
             hammer_x = self.hammer_image_conv(hammer_x)
             hammer_x = hammer_x.reshape(hammer_x.shape[0], -1) 
             if self.learn_voi: 
                 cost = self.voi(hammer_x) # cost of message 
+                ask = self.inquire(torch.cat((x, cost), dim=1)) 
                 hammer_x = torch.mul(hammer_x, ask) 
                 cost = torch.mul(cost, ask) 
-                embedding = torch.cat((embedding, hammer_x, cost), dim=1) 
-            else: 
-                embedding = torch.cat((embedding, hammer_x), dim=1) 
+            embedding = torch.cat((embedding, hammer_x), dim=1) 
             
         x = self.actor(embedding)
         dist = Categorical(logits=F.log_softmax(x, dim=1))
