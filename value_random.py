@@ -122,7 +122,7 @@ class VoI_Random(nn.Module, torch_ac.RecurrentACModel):
             hammer_x = self.hammer_image_conv(hammer_x)
             hammer_x = hammer_x.reshape(hammer_x.shape[0], -1) 
             # Randomly ask for hammer's message 
-            ask = torch.randint(low=0, high=2, size=(hammer_x.shape[0], 1)) 
+            ask = torch.randint(low=0, high=2, size=(hammer_x.shape[0], 1)).to(device)
             hammer_x = torch.mul(hammer_x, ask) 
             embedding = torch.cat((embedding, hammer_x), dim=1) 
             
