@@ -5,6 +5,10 @@ from torch.distributions.categorical import Categorical
 import torch_ac
 
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print('Using device:', device)
+print()
+
 # Function from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
 def init_params(m):
     classname = m.__class__.__name__
@@ -84,7 +88,7 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
                     nn.Linear(self.hammer_image_embedding_size, 32),
                     nn.Tanh(),
                     nn.Linear(32, 1), 
-                    nn.LeakyReLU()
+                    nn.Softplus()
                 ) 
 
 
