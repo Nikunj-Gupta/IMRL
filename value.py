@@ -163,7 +163,7 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
         if not self.learn_voi: 
             cost = torch.zeros((value.shape[0], 1)) 
 
-        return dist, value, cost, memory 
+        return dist, value, cost, ask, memory 
 
     def _get_embed_text(self, text):
         _, hidden = self.text_rnn(self.word_embedding(text))
