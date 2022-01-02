@@ -8,8 +8,9 @@ import torch_ac
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Using device:', device)
 print()
-
+SCALE = 2 * 20 
 # Function from https://github.com/ikostrikov/pytorch-a2c-ppo-acktr/blob/master/model.py
+
 def init_params(m):
     classname = m.__class__.__name__
     if classname.find("Linear") != -1:
@@ -18,6 +19,31 @@ def init_params(m):
         if m.bias is not None:
             m.bias.data.fill_(0)
 
+
+
+class DRU:
+    def __init__(self, sigma=2, hard=False):
+        self.sigma = sigma # standard deviation of Gaussian noise applied by DRU 
+        self.hard = hard # true if use hard discretization, soft approximation otherwise 
+
+    def regularize(self, message): 
+        m_reg = message + torch.randn(message.size()) * self.sigma # add noise to message 
+        m_reg = torch.sigmoid(m_reg) 
+        return m_reg
+
+    def discretize(self, message):
+        if self.hard: 
+            return (message.gt(0.5).float() - 0.5).sign().float() 
+        else: 
+            scale = 2 * 20 
+            return torch.sigmoid((message.gt(0.5).float() - 0.5) * scale) 
+
+    def forward(self, message, mode): # mode = D for discretize / R for regularize 
+        if mode=="R": 
+
+            return self.regularize(message) # Dial used regularization during training 
+        elif mode=="D": 
+            return self.discretize(message) # Dial used discretization message during execution 
 
 class VoI(nn.Module, torch_ac.RecurrentACModel):
     def __init__(self, obs_space, action_space, use_memory=False, use_text=False, use_hammer=False, learn_voi=False): 
@@ -55,17 +81,7 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
             self.word_embedding = nn.Embedding(obs_space["text"], self.word_embedding_size)
             self.text_embedding_size = 128
             self.text_rnn = nn.GRU(self.word_embedding_size, self.text_embedding_size, batch_first=True)
-
-        if self.learn_voi: 
-            # Define actor's inquiry model
-            self.inquire = nn.Sequential(
-                nn.Linear(self.image_embedding_size+1, 64), # adding 1; for cost from information agent 
-                nn.Tanh(),
-                nn.Linear(64, 1), 
-                nn.Sigmoid()
-            ) 
         
-
         # Define hammer's image embedding
         if self.use_hammer:
             self.hammer_image_conv = nn.Sequential(
@@ -86,11 +102,22 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
                 print(self.hammer_image_embedding_size) 
                 self.voi = nn.Sequential(
                     nn.Linear(self.hammer_image_embedding_size, 32),
-                    nn.Tanh(),
+                    nn.ReLU(),
                     nn.Linear(32, 1), 
-                    nn.Softplus()
+                    nn.Softplus(beta=10)
+                    # nn.Sigmoid()
                 ) 
 
+
+        if self.learn_voi: 
+            # Define actor's inquiry model
+            self.inquire = nn.Sequential(
+                nn.Linear(self.image_embedding_size+1, 32), # adding 1; for cost from information agent 
+                nn.ReLU(),
+                nn.Linear(32, 1), 
+            ) 
+        
+        self.dru = DRU() 
 
         # Resize image embedding
         self.embedding_size = self.semi_memory_size
@@ -149,9 +176,11 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
             hammer_x = hammer_x.reshape(hammer_x.shape[0], -1) 
             if self.learn_voi: 
                 cost = self.voi(hammer_x) # cost of message 
-                ask = self.inquire(torch.cat((x, cost), dim=1)) 
+                ask = self.inquire(torch.cat((embedding, cost), dim=1)) 
+                ask = self.dru.forward(message=ask, mode="R") 
                 hammer_x = torch.mul(hammer_x, ask) 
                 cost = torch.mul(cost, ask) 
+
             embedding = torch.cat((embedding, hammer_x), dim=1) 
             
         x = self.actor(embedding)
@@ -163,7 +192,7 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
         if not self.learn_voi: 
             cost = torch.zeros((value.shape[0], 1)) 
 
-        return dist, value, cost, ask, memory 
+        return dist, value, cost, self.dru.forward(message=ask, mode="D"), memory 
 
     def _get_embed_text(self, text):
         _, hidden = self.text_rnn(self.word_embedding(text))
