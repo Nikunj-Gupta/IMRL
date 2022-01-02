@@ -30,8 +30,8 @@ if __name__ == '__main__':
                         help="number of updates between two saves (default: 10, 0 means no saving)")
     parser.add_argument("--procs", type=int, default=16,
                         help="number of processes (default: 16)")
-    parser.add_argument("--frames", type=int, default=10**7,
-                        help="number of frames of training (default: 1e7)")
+    parser.add_argument("--frames", type=int, default=5*10**6,
+                        help="number of frames of training (default: 5M)")
 
     ## Parameters for main algorithm
     parser.add_argument("--epochs", type=int, default=4,
@@ -179,25 +179,38 @@ if __name__ == '__main__':
         if update % args.log_interval == 0:
             fps = logs["num_frames"]/(update_end_time - update_start_time)
             duration = int(time.time() - start_time)
-            return_per_episode = utils.synthesize(logs["return_per_episode"])
-            rreturn_per_episode = utils.synthesize(logs["reshaped_return_per_episode"])
+
+            return_per_episode_rminusv = utils.synthesize(logs["return_per_episode_r-v"])
+            rreturn_per_episode_rminusv = utils.synthesize(logs["reshaped_return_per_episode_r-v"])
+            return_per_episode_rplusv = utils.synthesize(logs["return_per_episode_r+v"])
+            rreturn_per_episode_rplusv = utils.synthesize(logs["reshaped_return_per_episode_r+v"])
+            return_per_episode_r = utils.synthesize(logs["return_per_episode_r"])
+            rreturn_per_episode_r = utils.synthesize(logs["reshaped_return_per_episode_r"])
             num_frames_per_episode = utils.synthesize(logs["num_frames_per_episode"])
 
             header = ["update", "frames", "FPS", "duration"]
             data = [update, num_frames, fps, duration]
-            header += ["rreturn_" + key for key in rreturn_per_episode.keys()]
-            data += rreturn_per_episode.values()
+            header += ["rreturn_rminusv_" + key for key in rreturn_per_episode_rminusv.keys()]
+            data += rreturn_per_episode_rminusv.values()
+            header += ["rreturn_rplusv_" + key for key in rreturn_per_episode_rplusv.keys()]
+            data += rreturn_per_episode_rplusv.values()
+            header += ["rreturn_r_" + key for key in rreturn_per_episode_r.keys()]
+            data += rreturn_per_episode_r.values()
             header += ["num_frames_" + key for key in num_frames_per_episode.keys()]
             data += num_frames_per_episode.values()
-            header += ["entropy", "value", "cost", "policy_loss", "value_loss", "grad_norm"]
-            data += [logs["entropy"], logs["value"], logs["cost"], logs["policy_loss"], logs["value_loss"], logs["grad_norm"]]
+            header += ["entropy", "value", "cost", "inquiry", "policy_loss", "value_loss", "grad_norm"]
+            data += [logs["entropy"], logs["value"], logs["cost"], logs["inquiries"], logs["policy_loss"], logs["value_loss"], logs["grad_norm"]]
 
             txt_logger.info(
                 "U {} | F {:06} | FPS {:04.0f} | D {} | rR:μσmM {:.2f} {:.2f} {:.2f} {:.2f} | F:μσmM {:.1f} {:.1f} {} {} | H {:.3f} | V {:.3f} | pL {:.3f} | vL {:.3f} | ∇ {:.3f}"
                 .format(*data))
 
-            header += ["return_" + key for key in return_per_episode.keys()]
-            data += return_per_episode.values()
+            # header += ["return_rminusv_" + key for key in return_per_episode_rminusv.keys()]
+            # data += return_per_episode_rminusv.values()
+            # header += ["return_rplusv_" + key for key in return_per_episode_rplusv.keys()]
+            # data += return_per_episode_rplusv.values()
+            # header += ["return_r_" + key for key in return_per_episode_r.keys()]
+            # data += return_per_episode_r.values()
 
             if status["num_frames"] == 0:
                 csv_logger.writerow(header)
