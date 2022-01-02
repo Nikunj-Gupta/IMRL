@@ -27,7 +27,7 @@ class DRU:
         self.hard = hard # true if use hard discretization, soft approximation otherwise 
 
     def regularize(self, message): 
-        m_reg = message + torch.randn(message.size()) * self.sigma # add noise to message 
+        m_reg = message + torch.randn(message.size()).to(device) * self.sigma # add noise to message 
         m_reg = torch.sigmoid(m_reg).to(device) 
         return m_reg
 
