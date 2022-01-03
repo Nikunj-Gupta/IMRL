@@ -191,7 +191,10 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
 
         if not self.learn_voi: 
             cost = torch.zeros((value.shape[0], 1)) 
-
+            if self.use_hammer: 
+                ask = torch.ones((value.shape[0], 1)) 
+            else: 
+                ask = torch.zeros((value.shape[0], 1)) 
         return dist, value, cost, self.dru.forward(message=ask, mode="D"), memory 
 
     def _get_embed_text(self, text):
