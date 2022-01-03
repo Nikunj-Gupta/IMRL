@@ -30,8 +30,8 @@ if __name__ == '__main__':
                         help="number of updates between two saves (default: 10, 0 means no saving)")
     parser.add_argument("--procs", type=int, default=16,
                         help="number of processes (default: 16)")
-    parser.add_argument("--frames", type=int, default=5*10**6,
-                        help="number of frames of training (default: 5M)")
+    parser.add_argument("--frames", type=int, default=20*10**6,
+                        help="number of frames of training (default: 20M)")
 
     ## Parameters for main algorithm
     parser.add_argument("--epochs", type=int, default=4,
