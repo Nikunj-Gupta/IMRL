@@ -20,13 +20,13 @@ def init_params(m):
 
 
 class VoI_Random(nn.Module, torch_ac.RecurrentACModel):
-    def __init__(self, obs_space, action_space, use_memory=False, use_text=False, use_hammer=True, prob=0.5): 
+    def __init__(self, obs_space, action_space, use_memory=False, use_text=False, prob=0.5): 
         super().__init__()
 
         # Decide which components are enabled
         self.use_text = use_text
         self.use_memory = use_memory
-        self.use_hammer = use_hammer 
+        self.use_hammer = True 
         self.prob = prob 
 
         # Define image embedding

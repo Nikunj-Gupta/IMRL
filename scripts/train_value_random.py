@@ -7,9 +7,6 @@ import sys
 
 import utils
 from utils import device
-from model import ACModel
-from hammer import Hammer 
-from value import VoI 
 from value_random import VoI_Random 
 
 if __name__ == '__main__': 
@@ -31,8 +28,8 @@ if __name__ == '__main__':
                         help="number of updates between two saves (default: 10, 0 means no saving)")
     parser.add_argument("--procs", type=int, default=16,
                         help="number of processes (default: 16)")
-    parser.add_argument("--frames", type=int, default=10**7,
-                        help="number of frames of training (default: 5e6)")
+    parser.add_argument("--frames", type=int, default=20*10**6,
+                        help="number of frames of training (default: 20M)")
 
     ## Parameters for main algorithm
     parser.add_argument("--epochs", type=int, default=4,
@@ -63,10 +60,6 @@ if __name__ == '__main__':
                         help="number of time-steps gradient is backpropagated (default: 1). If > 1, a LSTM is added to the model to have memory.")
     parser.add_argument("--text", action="store_true", default=False,
                         help="add a GRU to the model to handle text input")
-    parser.add_argument("--hammer", action="store_true", default=False,
-                        help="Hammer to learn to communicate") 
-    parser.add_argument("--voi", action="store_true", default=False,
-                        help="Asking for information from Hammer randomly")
     parser.add_argument("--prob", type=float, default=0.5,
                         help="Asking for information from Hammer with probability p")
 
@@ -105,7 +98,7 @@ if __name__ == '__main__':
 
     envs = []
     for i in range(args.procs):
-        envs.append(utils.make_env(args.env, args.seed + 10000 * i, args.hammer or args.voi)) 
+        envs.append(utils.make_env(args.env, args.seed + 10000 * i, True )) 
     txt_logger.info("Environments loaded\n") 
 
     obs_space, preprocess_obss = utils.get_obss_preprocessor(envs[0].observation_space) 
@@ -126,9 +119,6 @@ if __name__ == '__main__':
 
     # Load model
 
-    # acmodel = ACModel(obs_space, envs[0].action_space, args.mem, args.text)
-    # acmodel = Hammer(obs_space, envs[0].action_space, args.mem, args.text, args.hammer)
-    # acmodel = VoI(obs_space, envs[0].action_space, use_memory=args.mem, use_text=args.text, use_hammer=args.hammer, learn_voi=args.voi)
     acmodel = VoI_Random(obs_space, envs[0].action_space, use_memory=args.mem, use_text=args.text, prob=args.prob)
 
     if "model_state" in status:
