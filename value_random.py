@@ -20,13 +20,14 @@ def init_params(m):
 
 
 class VoI_Random(nn.Module, torch_ac.RecurrentACModel):
-    def __init__(self, obs_space, action_space, use_memory=False, use_text=False, use_hammer=True): 
+    def __init__(self, obs_space, action_space, use_memory=False, use_text=False, use_hammer=True, prob=0.5): 
         super().__init__()
 
         # Decide which components are enabled
         self.use_text = use_text
         self.use_memory = use_memory
         self.use_hammer = use_hammer 
+        self.prob = prob 
 
         # Define image embedding
         self.image_conv = nn.Sequential(
@@ -122,7 +123,8 @@ class VoI_Random(nn.Module, torch_ac.RecurrentACModel):
             hammer_x = self.hammer_image_conv(hammer_x)
             hammer_x = hammer_x.reshape(hammer_x.shape[0], -1) 
             # Randomly ask for hammer's message 
-            ask = torch.randint(low=0, high=2, size=(hammer_x.shape[0], 1)).to(device)
+            # ask = torch.randint(low=0, high=2, size=(hammer_x.shape[0], 1)).to(device)
+            ask = torch.rand(hammer_x.shape[0], 1).lt(self.prob).float().to(device)
             hammer_x = torch.mul(hammer_x, ask) 
             embedding = torch.cat((embedding, hammer_x), dim=1) 
             
@@ -134,7 +136,7 @@ class VoI_Random(nn.Module, torch_ac.RecurrentACModel):
 
         cost = torch.zeros((value.shape[0], 1)) 
 
-        return dist, value, cost, memory 
+        return dist, value, cost, ask, memory 
 
     def _get_embed_text(self, text):
         _, hidden = self.text_rnn(self.word_embedding(text))
