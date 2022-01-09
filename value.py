@@ -46,16 +46,16 @@ class DRU:
             return self.discretize(message) # Dial used discretization message during execution 
 
 class VoI(nn.Module, torch_ac.RecurrentACModel):
-    def __init__(self, obs_space, action_space, use_memory=False, use_text=False, use_hammer=False, learn_voi=False): 
+    def __init__(self, obs_space, action_space, use_memory=False, use_text=False, strategy=None, beta=50, prob=0.5): 
         super().__init__()
 
         # Decide which components are enabled
         self.use_text = use_text
         self.use_memory = use_memory
-        self.use_hammer = use_hammer 
-        self.learn_voi = learn_voi 
-        if self.learn_voi: 
-            self.use_hammer = True 
+        self.strategy = strategy 
+        self.beta = beta 
+        self.prob = prob 
+        self.use_hammer = False if self.strategy==None else True 
 
         # Define image embedding
         self.image_conv = nn.Sequential(
@@ -97,24 +97,24 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
             hammer_m = obs_space["hammer_image"][1]
             self.hammer_image_embedding_size = ((hammer_n-1)//2-2)*((hammer_m-1)//2-2)*64 
         
-            if self.learn_voi: 
+            if self.strategy=="voi": 
                 # Define hammer's voi module 
                 print(self.hammer_image_embedding_size) 
                 self.voi = nn.Sequential(
                     nn.Linear(self.hammer_image_embedding_size, 32),
                     nn.ReLU(),
                     nn.Linear(32, 1), 
-                    nn.Softplus(beta=10)
+                    nn.Softplus(beta=self.beta)
                     # nn.Sigmoid()
                 ) 
 
 
-        if self.learn_voi: 
+        if self.strategy=="voi": 
             # Define actor's inquiry model
             self.inquire = nn.Sequential(
                 nn.Linear(self.image_embedding_size+1, 32), # adding 1; for cost from information agent 
                 nn.ReLU(),
-                nn.Linear(32, 1), 
+                nn.Linear(32, 1) 
             ) 
         
         self.dru = DRU() 
@@ -125,8 +125,6 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
             self.embedding_size += self.text_embedding_size 
         if self.use_hammer: 
             self.embedding_size += self.hammer_image_embedding_size 
-        # if self.learn_voi: 
-        #     self.embedding_size += 1 # cost 
         
         # Define actor's model
         self.actor = nn.Sequential(
@@ -170,33 +168,35 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
             embed_text = self._get_embed_text(obs.text)
             embedding = torch.cat((embedding, embed_text), dim=1)
         
+        if self.strategy!="voi": cost = torch.zeros((embedding.shape[0], 1)) 
+        if self.use_hammer: ask = torch.ones((embedding.shape[0], 1)) 
+        else: ask = torch.zeros((embedding.shape[0], 1)) 
+
         if self.use_hammer: 
             hammer_x = obs.hammer_image.transpose(1, 3).transpose(2, 3)
             hammer_x = self.hammer_image_conv(hammer_x)
             hammer_x = hammer_x.reshape(hammer_x.shape[0], -1) 
-            if self.learn_voi: 
+            if self.strategy == "voi": 
                 cost = self.voi(hammer_x) # cost of message 
                 ask = self.inquire(torch.cat((embedding, cost), dim=1)) 
-                ask = self.dru.forward(message=ask, mode="R") 
+                ask = self.dru.forward(message=ask, mode="R")
                 hammer_x = torch.mul(hammer_x, ask) 
                 cost = torch.mul(cost, ask) 
-
+            if self.strategy == "random": 
+                ask = torch.rand(hammer_x.shape[0], 1).lt(self.prob).float().to(device)
+                hammer_x = torch.mul(hammer_x, ask) 
             embedding = torch.cat((embedding, hammer_x), dim=1) 
             
         x = self.actor(embedding)
-        dist = Categorical(logits=F.log_softmax(x, dim=1))
+        dist = Categorical(logits=F.log_softmax(x, dim=1)) 
+        print(dist.probs)
+        exit() 
 
         x = self.critic(embedding)
         value = x.squeeze(1) 
 
-        if not self.learn_voi: 
-            cost = torch.zeros((value.shape[0], 1)) 
-            if self.use_hammer: 
-                ask = torch.ones((value.shape[0], 1)) 
-            else: 
-                ask = torch.zeros((value.shape[0], 1)) 
         return dist, value, cost, self.dru.forward(message=ask, mode="D"), memory 
-
+    
     def _get_embed_text(self, text):
         _, hidden = self.text_rnn(self.word_embedding(text))
         return hidden[-1]
