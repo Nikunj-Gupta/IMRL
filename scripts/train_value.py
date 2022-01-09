@@ -7,8 +7,6 @@ import sys
 
 import utils
 from utils import device
-from model import ACModel
-from hammer import Hammer 
 from value import VoI 
 
 if __name__ == '__main__': 
@@ -30,8 +28,8 @@ if __name__ == '__main__':
                         help="number of updates between two saves (default: 10, 0 means no saving)")
     parser.add_argument("--procs", type=int, default=16,
                         help="number of processes (default: 16)")
-    parser.add_argument("--frames", type=int, default=20*10**6,
-                        help="number of frames of training (default: 20M)")
+    parser.add_argument("--frames", type=int, default=10*10**6,
+                        help="number of frames of training (default: 10M)")
 
     ## Parameters for main algorithm
     parser.add_argument("--epochs", type=int, default=4,
@@ -62,12 +60,12 @@ if __name__ == '__main__':
                         help="number of time-steps gradient is backpropagated (default: 1). If > 1, a LSTM is added to the model to have memory.")
     parser.add_argument("--text", action="store_true", default=False,
                         help="add a GRU to the model to handle text input")
-    parser.add_argument("--hammer", action="store_true", default=False,
-                        help="Hammer to learn to communicate") 
-    parser.add_argument("--voi", action="store_true", default=False,
-                        help="Hammer learning the value of information")
-    # parser.add_argument("--cost", type=float, default=0,
-    #                     help="(Milestone 1) fixed cost for Hammer's information") 
+    parser.add_argument("--strategy", type=str, default=None,
+                        help="Learning the value of information")
+    parser.add_argument("--beta", type=int, default=50,
+                        help="beta for VoI's softplus") 
+    parser.add_argument("--prob", type=float, default=0.5,
+                        help="prob for random strategy") 
 
     args = parser.parse_args()
 
@@ -101,10 +99,10 @@ if __name__ == '__main__':
     txt_logger.info(f"Device: {device}\n")
 
     # Load environments
-
+    hammer = False if args.strategy==None else True 
     envs = []
-    for i in range(args.procs):
-        envs.append(utils.make_env(args.env, args.seed + 10000 * i, args.hammer or args.voi)) 
+    for i in range(args.procs): 
+        envs.append(utils.make_env(args.env, args.seed + 10000 * i, hammer)) 
     txt_logger.info("Environments loaded\n") 
 
     obs_space, preprocess_obss = utils.get_obss_preprocessor(envs[0].observation_space) 
@@ -125,9 +123,7 @@ if __name__ == '__main__':
 
     # Load model
 
-    # acmodel = ACModel(obs_space, envs[0].action_space, args.mem, args.text)
-    # acmodel = Hammer(obs_space, envs[0].action_space, args.mem, args.text, args.hammer)
-    acmodel = VoI(obs_space, envs[0].action_space, use_memory=args.mem, use_text=args.text, use_hammer=args.hammer, learn_voi=args.voi)
+    acmodel = VoI(obs_space, envs[0].action_space, use_memory=args.mem, use_text=args.text, strategy=args.strategy, beta=args.beta, prob=args.prob)
     if "model_state" in status:
         acmodel.load_state_dict(status["model_state"])
     acmodel.to(device)
@@ -141,7 +137,7 @@ if __name__ == '__main__':
                                 args.entropy_coef, args.value_loss_coef, args.max_grad_norm, args.recurrence,
                                 args.optim_alpha, args.optim_eps, preprocess_obss)
     elif args.algo == "ppo":
-        if args.voi:
+        if args.strategy == "voi" or args.strategy == "random":
             algo = torch_ac.PPOAlgo(envs, acmodel, device, args.frames_per_proc, args.discount, args.lr, args.gae_lambda,
                                     args.entropy_coef, args.value_loss_coef, args.max_grad_norm, args.recurrence,
                                     args.optim_eps, args.clip_eps, args.epochs, args.batch_size, preprocess_obss)
