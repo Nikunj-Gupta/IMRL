@@ -189,8 +189,6 @@ class VoI(nn.Module, torch_ac.RecurrentACModel):
             
         x = self.actor(embedding)
         dist = Categorical(logits=F.log_softmax(x, dim=1)) 
-        print(dist.probs)
-        exit() 
 
         x = self.critic(embedding)
         value = x.squeeze(1) 
