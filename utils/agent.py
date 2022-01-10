@@ -1,10 +1,7 @@
-from hammer import Hammer
 import torch
 
 import utils
 from .other import device
-from model import ACModel 
-from hammer import Hammer
 from value import VoI
 
 
